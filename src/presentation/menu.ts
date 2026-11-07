@@ -6,6 +6,7 @@ import { removeCity } from "../actions/removeCity.ts";
 import { setDefaultCity } from "../actions/setDefaultCity.ts";
 import { setUnit } from "../actions/setUnit.ts";
 import { searchCities } from "../api/geocoding.ts";
+import { CityNotFoundError } from "../errors/CityNotFoundError.ts";
 import type { CitySettings, Unit } from "../types/Settings.ts";
 import type { GeoResult, WeatherInfo } from "../types/Weather.ts";
 import { cyan, paint } from "../utils/colors.ts";
@@ -55,12 +56,16 @@ export async function runMenu(initialSettings: CitySettings): Promise<void> {
           break;
         }
         printMessage(`Consultando el clima de ${settings.defaultCity}...`);
-        const weather = await getWeather(settings.defaultCity);
-        if (!weather) {
-          printError(`No se encontró la ciudad "${settings.defaultCity}".`);
-          break;
+        try {
+          const weather = await getWeather(settings.defaultCity);
+          printMessage(formatWeather(weather, settings.unit));
+        } catch (err) {
+          if (err instanceof CityNotFoundError) {
+            printError(`No se encontró la ciudad "${settings.defaultCity}".`);
+          } else {
+            throw err;
+          }
         }
-        printMessage(formatWeather(weather, settings.unit));
         break;
       }
       case 2: {
@@ -112,12 +117,16 @@ export async function runMenu(initialSettings: CitySettings): Promise<void> {
         const city = await resolveForecastCity(settings);
         if (!city) break;
         printMessage(`Consultando el pronóstico de ${city}...`);
-        const forecast = await getForecast(city);
-        if (!forecast) {
-          printError(`No se encontró la ciudad "${city}".`);
-          break;
+        try {
+          const forecast = await getForecast(city);
+          printMessage(formatForecast(forecast, settings.unit));
+        } catch (err) {
+          if (err instanceof CityNotFoundError) {
+            printError(`No se encontró la ciudad "${city}".`);
+          } else {
+            throw err;
+          }
         }
-        printMessage(formatForecast(forecast, settings.unit));
         break;
       }
       case 8: {
@@ -207,13 +216,17 @@ async function handleAddCity(query: string, current: CitySettings): Promise<City
   const updated = await addCity(chosen.name);
 
   printMessage(`Consultando el clima de ${chosen.name}...`);
-  const weather = await getWeather(chosen.name);
-  if (!weather) {
-    clearScreen();
-    printError(`No se pudo obtener el clima de ${chosen.name}.`);
-  } else {
+  try {
+    const weather = await getWeather(chosen.name);
     clearScreen();
     printMessage(formatWeather(weather, updated.unit));
+  } catch (err) {
+    clearScreen();
+    if (err instanceof CityNotFoundError) {
+      printError(`No se encontró la ciudad "${chosen.name}".`);
+    } else {
+      throw err;
+    }
   }
 
   return updated;

@@ -5,9 +5,12 @@
   "private": true,
   "scripts": {
     "typecheck": "bun check",
+    "test": "bun test --timeout 15000",
+    "test:coverage": "bun test --coverage",
+    "test:integration": "RUN_INTEGRATION=1 bun test --timeout 30000 test/integration/openmeteo.test.ts",
     "start": "bun run src/index.ts",
     "dev": "bun run src/index.ts --watch",
-    "build": "bun build --compile src/index.ts --outfile out/weather"
+    "build": "bun test --timeout 15000 && bun build --compile src/index.ts --outfile out/weather"
   },
   "devDependencies": {
     "@types/bun": "latest"

@@ -1,20 +1,31 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { CitySettings, Unit } from "../types/Settings.ts";
 import { DEFAULT_UNIT } from "../utils/constants.ts";
 
-const STORAGE_DIR = `${Bun.env.HOME ?? ""}/.weather-cli`;
-const STORAGE_PATH = `${STORAGE_DIR}/cities.json`;
+const storageDirContext = new AsyncLocalStorage<string>();
 
-const DEFAULT_SETTINGS: CitySettings = {
-  defaultCity: null,
-  savedCities: [],
-  unit: DEFAULT_UNIT,
-};
+/**
+ * Ejecuta una operación con un directorio de storage aislado.
+ * Sin override se usa `~/.weather-cli`, que es el comportamiento normal de la app.
+ */
+export function withStorageDir<T>(directory: string, operation: () => Promise<T>): Promise<T> {
+  return storageDirContext.run(directory, operation);
+}
+
+function storagePath(): string {
+  const directory = storageDirContext.getStore() ?? `${Bun.env.HOME ?? ""}/.weather-cli`;
+  return `${directory}/cities.json`;
+}
+
+function defaultSettings(): CitySettings {
+  return { defaultCity: null, savedCities: [], unit: DEFAULT_UNIT };
+}
 
 export async function loadSettings(): Promise<CitySettings> {
-  const file = Bun.file(STORAGE_PATH);
+  const file = Bun.file(storagePath());
 
   if (!(await file.exists())) {
-    return { ...DEFAULT_SETTINGS };
+    return defaultSettings();
   }
 
   try {
@@ -28,10 +39,10 @@ export async function loadSettings(): Promise<CitySettings> {
 
     return { defaultCity, savedCities, unit };
   } catch {
-    return { ...DEFAULT_SETTINGS };
+    return defaultSettings();
   }
 }
 
 export async function saveSettings(settings: CitySettings): Promise<void> {
-  await Bun.write(STORAGE_PATH, JSON.stringify(settings, null, 2));
+  await Bun.write(storagePath(), JSON.stringify(settings, null, 2));
 }
