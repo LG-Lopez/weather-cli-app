@@ -1,8 +1,10 @@
 import {
+  getForecast,
   getWeather,
   searchCities,
   describeWeatherCode,
   weatherIcon,
+  type DailyForecast,
   type GeoResult,
   type WeatherInfo,
 } from "./weather.ts";
@@ -22,7 +24,8 @@ function buildBanner(savedCount: number): string {
     "  3. Buscar y agregar ciudad",
     "  4. Eliminar ciudad",
     "  5. Establecer ciudad default",
-    "  8. Ajustes (°C)",
+    "  6. Pronóstico de 7 días",
+    "  8. Ajustes (°C/°F)",
     "  9. Salir",
     paint(BANNER_LINE, cyan),
   ].join("\n");
@@ -34,9 +37,13 @@ function celsiusToFahrenheit(celsius: number): number {
   return (celsius * 9) / 5 + 32;
 }
 
-function formatTemperature(celsius: number, unit: Unit): string {
+function temperatureValue(celsius: number, unit: Unit): string {
   const value = unit === "F" ? celsiusToFahrenheit(celsius) : celsius;
-  return paint(`${Math.round(value)}°${unit}`, temp);
+  return `${Math.round(value)}°${unit}`;
+}
+
+function formatTemperature(celsius: number, unit: Unit): string {
+  return paint(temperatureValue(celsius, unit), temp);
 }
 
 function formatWeather(weather: WeatherInfo, unit: Unit): string {
@@ -48,6 +55,31 @@ function formatWeather(weather: WeatherInfo, unit: Unit): string {
     `    Sensación: ${formatTemperature(weather.apparentTemperatureC, unit)} · Viento: ${Math.round(weather.windKph)} km/h`,
   ];
   return lines.join("\n");
+}
+
+const DAY_LABEL_FORMATTER = new Intl.DateTimeFormat("es-ES", {
+  weekday: "short",
+  day: "2-digit",
+});
+
+function formatDayLabel(date: string): string {
+  const [year, month, day] = date.split("-").map(Number);
+  if (year === undefined || month === undefined || day === undefined) {
+    return date;
+  }
+  const label = DAY_LABEL_FORMATTER.format(new Date(year, month - 1, day));
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function formatForecast(forecast: DailyForecast, unit: Unit): string {
+  const header = paint(`  ${"Día".padEnd(14)}${"Máx".padStart(6)}${"Mín".padStart(8)}`, cyan);
+  const rows = forecast.days.map((day) => {
+    const label = formatDayLabel(day.date).padEnd(14);
+    const max = temperatureValue(day.maxC, unit).padStart(6);
+    const min = temperatureValue(day.minC, unit).padStart(8);
+    return `  ${label}${paint(max, temp)}${paint(min, temp)}`;
+  });
+  return [`Pronóstico de 7 días para ${forecast.city}`, "", header, ...rows].join("\n");
 }
 
 export async function runMenu(initialSettings: CitySettings): Promise<void> {
@@ -126,6 +158,19 @@ export async function runMenu(initialSettings: CitySettings): Promise<void> {
         settings = await handleSetDefaultCity(settings);
         break;
       }
+      case 6: {
+        console.clear();
+        const city = await resolveForecastCity(settings);
+        if (!city) break;
+        console.log(`Consultando el pronóstico de ${city}...`);
+        const forecast = await getForecast(city);
+        if (!forecast) {
+          console.log(paint(`No se encontró la ciudad "${city}".`, error));
+          break;
+        }
+        console.log(formatForecast(forecast, settings.unit));
+        break;
+      }
       case 8: {
         console.clear();
         settings = await handleSetUnit(settings);
@@ -144,6 +189,32 @@ export async function runMenu(initialSettings: CitySettings): Promise<void> {
       console.log(paint(`Error: ${message}`, error));
     }
   }
+}
+
+async function resolveForecastCity(settings: CitySettings): Promise<string | undefined> {
+  if (settings.defaultCity) {
+    return settings.defaultCity;
+  }
+
+  if (settings.savedCities.length > 0) {
+    console.log("Ciudades registradas:");
+    settings.savedCities.forEach((city, index) => {
+      console.log(`  ${index + 1}. ${city}`);
+    });
+    const choice = (await prompt("Selecciona una ciudad (0 para cancelar): "))?.trim() ?? "";
+    const index = Number(choice);
+    const selected =
+      Number.isInteger(index) && index > 0 && index <= settings.savedCities.length
+        ? settings.savedCities[index - 1]
+        : undefined;
+    if (!selected) {
+      console.log("Operación cancelada.");
+    }
+    return selected;
+  }
+
+  const name = (await prompt("Ingresa el nombre de la ciudad: "))?.trim() ?? "";
+  return name || undefined;
 }
 
 const CANDIDATE_LIMIT = 20;

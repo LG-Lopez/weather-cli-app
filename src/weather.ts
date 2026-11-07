@@ -19,6 +19,20 @@ export interface WeatherInfo {
   time: string;
 }
 
+export interface ForecastDay {
+  date: string;
+  maxC: number;
+  minC: number;
+}
+
+export interface DailyForecast {
+  city: string;
+  country?: string;
+  latitude: number;
+  longitude: number;
+  days: ForecastDay[];
+}
+
 const GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search";
 const FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
 
@@ -40,8 +54,15 @@ interface CurrentWeather {
   wind_speed_10m: number;
 }
 
+interface DailyWeather {
+  time: string[];
+  temperature_2m_max: number[];
+  temperature_2m_min: number[];
+}
+
 interface ForecastResponse {
   current?: CurrentWeather;
+  daily?: DailyWeather;
 }
 
 export async function getWeather(city: string): Promise<WeatherInfo | null> {
@@ -72,6 +93,44 @@ export async function getWeather(city: string): Promise<WeatherInfo | null> {
     weatherCode: current.weather_code,
     windKph: current.wind_speed_10m,
     time: current.time,
+  };
+}
+
+export async function getForecast(city: string, days = 7): Promise<DailyForecast | null> {
+  const results = await searchCities(city, 1);
+  const location = results[0];
+  if (!location) {
+    return null;
+  }
+
+  const forecastUrl = `${FORECAST_URL}?latitude=${location.latitude}&longitude=${location.longitude}&daily=temperature_2m_max,temperature_2m_min&forecast_days=${days}&timezone=auto`;
+  const response = await fetch(forecastUrl);
+  if (!response.ok) {
+    throw new Error(`Error consultando la API de pronóstico (HTTP ${response.status})`);
+  }
+  const data = (await response.json()) as ForecastResponse;
+  const daily = data.daily;
+  if (!daily) {
+    throw new Error("La API de pronóstico devolvió una respuesta sin datos diarios");
+  }
+
+  const forecastDays: ForecastDay[] = [];
+  for (let index = 0; index < daily.time.length; index++) {
+    const date = daily.time[index];
+    const maxC = daily.temperature_2m_max[index];
+    const minC = daily.temperature_2m_min[index];
+    if (date === undefined || maxC === undefined || minC === undefined) {
+      continue;
+    }
+    forecastDays.push({ date, maxC, minC });
+  }
+
+  return {
+    city: location.name,
+    country: location.country,
+    latitude: location.latitude,
+    longitude: location.longitude,
+    days: forecastDays,
   };
 }
 
