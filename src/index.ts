@@ -1,5 +1,6 @@
-import { runMenu } from "./src/menu.ts";
-import { loadSettings, saveSettings, type CitySettings, type Unit } from "./src/storage.ts";
+import { runMenu } from "./presentation/menu.ts";
+import { loadSettings, saveSettings } from "./storage/settingsStorage.ts";
+import type { Unit } from "./types/Settings.ts";
 
 function getInitialUnit(): Unit | undefined {
   const args = Bun.argv.slice(2);

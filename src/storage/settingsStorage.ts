@@ -1,10 +1,5 @@
-export type Unit = "C" | "F";
-
-export interface CitySettings {
-  defaultCity: string | null;
-  savedCities: string[];
-  unit: Unit;
-}
+import type { CitySettings, Unit } from "../types/Settings.ts";
+import { DEFAULT_UNIT } from "../utils/constants.ts";
 
 const STORAGE_DIR = `${Bun.env.HOME ?? ""}/.weather-cli`;
 const STORAGE_PATH = `${STORAGE_DIR}/cities.json`;
@@ -12,7 +7,7 @@ const STORAGE_PATH = `${STORAGE_DIR}/cities.json`;
 const DEFAULT_SETTINGS: CitySettings = {
   defaultCity: null,
   savedCities: [],
-  unit: "C",
+  unit: DEFAULT_UNIT,
 };
 
 export async function loadSettings(): Promise<CitySettings> {
