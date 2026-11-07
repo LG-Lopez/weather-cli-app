@@ -1,6 +1,6 @@
 {
   "name": "02-weather",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "module": "index.ts",
   "type": "module",
   "private": true,
@@ -11,7 +11,9 @@
     "test:integration": "RUN_INTEGRATION=1 bun test --timeout 30000 test/integration/openmeteo.test.ts",
     "start": "bun run src/index.ts",
     "dev": "bun run src/index.ts --watch",
-    "build": "bun test --timeout 15000 && bun build --compile src/index.ts --outfile out/weather"
+    "build:linux": "bun build --compile --target=bun-linux-x64 src/index.ts --outfile out/weather",
+    "build:windows": "bun build --compile --target=bun-windows-x64 src/index.ts --outfile out/weather.exe",
+    "build": "bun test --timeout 15000 && bun run build:linux && bun run build:windows"
   },
   "devDependencies": {
     "@types/bun": "latest"

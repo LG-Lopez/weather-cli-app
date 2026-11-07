@@ -67,6 +67,8 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.tag }}
           fail_on_unmatched_files: true
-          files: out/weather
+          files: |
+            out/weather
+            out/weather.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

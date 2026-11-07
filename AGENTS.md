@@ -28,7 +28,7 @@ A Bun CLI weather app (Udemy exercise). User-facing text is in Spanish.
 - `bun run start` — run the CLI (`bun run src/index.ts`); `bun run dev` does the same in watch mode.
 - `bun test` / `bun run test` — unit tests (timeout 15 s). `bun run test:coverage` for coverage.
 - `bun run test:integration` — hits the real OpenMeteo API (`RUN_INTEGRATION=1 bun test --timeout 30000 test/integration/openmeteo.test.ts`).
-- `bun run build` — runs the test suite, then `bun build --compile src/index.ts --outfile out/weather`.
+- `bun run build` — runs the test suite, then cross-compiles both targets: `build:linux` (`bun-linux-x64` → `out/weather`) and `build:windows` (`bun-windows-x64` → `out/weather.exe`).
 
 There is no lint, formatter, or CI setup. If you add tests, use `bun:test` (`bun test`).
 
@@ -44,7 +44,7 @@ There is no lint, formatter, or CI setup. If you add tests, use `bun:test` (`bun
 - Persistence is a single JSON file at `~/.weather-cli/cities.json` with `{ defaultCity, savedCities, unit }` (`unit` is `"C" | "F"`). Missing or corrupt files fall back to defaults. No database.
 - `withStorageDir(dir, fn)` in `src/storage/settingsStorage.ts` (backed by `AsyncLocalStorage`) isolates storage in tests. Use it instead of touching `$HOME`.
 - Default temperature unit is °C. It can be changed from menu option 8 or at startup with `--unit F` (any value other than `F` means `C`); both persist the setting.
-- The compiled binary is produced by `bun run build` at `out/weather`; `out/`, `dist/`, and `coverage/` are gitignored.
+- `bun run build` cross-compiles both binaries: `out/weather` (Linux x64) and `out/weather.exe` (Windows x64). The release workflow attaches both to the GitHub Release. `out/`, `dist/`, and `coverage/` are gitignored.
 
 ## TypeScript conventions
 
