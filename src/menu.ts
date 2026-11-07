@@ -1,12 +1,15 @@
 import { getWeather, searchCities, describeWeatherCode, weatherIcon, type WeatherInfo } from "./weather.ts";
 import { addCity, removeCity, setDefaultCity, setUnit } from "./cities.ts";
 import type { CitySettings, Unit } from "./storage.ts";
+import { cyan, error, ok, paint, temp } from "./colors.ts";
+
+const BANNER_LINE = "════════════════════════════════════════";
 
 function buildBanner(savedCount: number): string {
   return [
-    "════════════════════════════════════════",
-    "         WEATHER CLI",
-    "════════════════════════════════════════",
+    paint(BANNER_LINE, cyan),
+    paint("         WEATHER CLI", cyan),
+    paint(BANNER_LINE, cyan),
     "  1. Clima de ciudad default",
     `  2. Clima de todas las ciudades (${savedCount})`,
     "  3. Buscar y agregar ciudad",
@@ -14,7 +17,7 @@ function buildBanner(savedCount: number): string {
     "  5. Establecer ciudad default",
     "  8. Ajustes (°C)",
     "  9. Salir",
-    "════════════════════════════════════════",
+    paint(BANNER_LINE, cyan),
   ].join("\n");
 }
 
@@ -26,7 +29,7 @@ function celsiusToFahrenheit(celsius: number): number {
 
 function formatTemperature(celsius: number, unit: Unit): string {
   const value = unit === "F" ? celsiusToFahrenheit(celsius) : celsius;
-  return `${Math.round(value)}°${unit}`;
+  return paint(`${Math.round(value)}°${unit}`, temp);
 }
 
 function formatWeather(weather: WeatherInfo, unit: Unit): string {
@@ -51,7 +54,7 @@ export async function runMenu(initialSettings: CitySettings): Promise<void> {
 
     const option = Number(raw);
     if (!Number.isInteger(option) || option < 1 || option > 9) {
-      console.log("Opción no válida. Selecciona un número del menú.");
+      console.log(paint("Opción no válida. Selecciona un número del menú.", error));
       continue;
     }
 
@@ -66,7 +69,7 @@ export async function runMenu(initialSettings: CitySettings): Promise<void> {
         console.log(`Consultando el clima de ${settings.defaultCity}...`);
         const weather = await getWeather(settings.defaultCity);
         if (!weather) {
-          console.log(`No se encontró la ciudad "${settings.defaultCity}".`);
+          console.log(paint(`No se encontró la ciudad "${settings.defaultCity}".`, error));
           break;
         }
         console.log(formatWeather(weather, settings.unit));
@@ -91,7 +94,7 @@ export async function runMenu(initialSettings: CitySettings): Promise<void> {
         );
         for (const { city, weather } of results) {
           if (!weather) {
-            console.log(`No se pudo obtener el clima de ${city}.`);
+            console.log(paint(`No se pudo obtener el clima de ${city}.`, error));
             continue;
           }
           console.log(`\n${formatWeather(weather, settings.unit)}`);
@@ -129,9 +132,9 @@ export async function runMenu(initialSettings: CitySettings): Promise<void> {
       console.log("  2. No");
       const subRaw = (await prompt("  Selecciona una opción: "))?.trim() ?? "";
       if (Number(subRaw) === 2) break;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.log(`Error: ${message}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.log(paint(`Error: ${message}`, error));
     }
   }
 }
@@ -140,7 +143,7 @@ async function handleAddCity(query: string, current: CitySettings): Promise<City
   const results = await searchCities(query, 5);
   const first = results[0];
   if (!first) {
-    console.log(`No se encontró ninguna ciudad para "${query}".`);
+    console.log(paint(`No se encontró ninguna ciudad para "${query}".`, error));
     return current;
   }
 
@@ -164,14 +167,14 @@ async function handleAddCity(query: string, current: CitySettings): Promise<City
     chosen = selected;
   }
 
-  console.log(`Agregando "${chosen.name}" como ciudad guardada.`);
+  console.log(paint(`Agregando "${chosen.name}" como ciudad guardada.`, ok));
   const updated = await addCity(chosen.name);
 
   console.log(`Consultando el clima de ${chosen.name}...`);
   const weather = await getWeather(chosen.name);
   if (!weather) {
     console.clear();
-    console.log(`No se pudo obtener el clima de ${chosen.name}.`);
+    console.log(paint(`No se pudo obtener el clima de ${chosen.name}.`, error));
   } else {
     console.clear();
     console.log(formatWeather(weather, updated.unit));
@@ -202,7 +205,7 @@ async function handleRemoveCity(current: CitySettings): Promise<CitySettings> {
     return current;
   }
 
-  console.log(`Eliminando "${target}"...`);
+  console.log(paint(`Eliminando "${target}"...`, ok));
   return await removeCity(target);
 }
 
@@ -233,7 +236,7 @@ async function handleSetDefaultCity(current: CitySettings): Promise<CitySettings
     return current;
   }
 
-  console.log(`Estableciendo "${target}" como ciudad default.`);
+  console.log(paint(`Estableciendo "${target}" como ciudad default.`, ok));
   return await setDefaultCity(target);
 }
 
@@ -244,7 +247,7 @@ async function handleSetUnit(current: CitySettings): Promise<CitySettings> {
   const choice = (await prompt("Selecciona la unidad (1. Celsius, 2. Fahrenheit): "))?.trim() ?? "";
   const value = Number(choice);
   const unit: Unit = value === 2 ? "F" : "C";
-  console.log(`Ajustando la unidad a ${unit === "C" ? "Celsius (°C)" : "Fahrenheit (°F)"}.`);
+  console.log(paint(`Ajustando la unidad a ${unit === "C" ? "Celsius (°C)" : "Fahrenheit (°F)"}.`, ok));
 
   return await setUnit(unit);
 }
