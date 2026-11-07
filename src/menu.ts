@@ -1,4 +1,11 @@
-import { getWeather, searchCities, describeWeatherCode, weatherIcon, type WeatherInfo } from "./weather.ts";
+import {
+  getWeather,
+  searchCities,
+  describeWeatherCode,
+  weatherIcon,
+  type GeoResult,
+  type WeatherInfo,
+} from "./weather.ts";
 import { addCity, removeCity, setDefaultCity, setUnit } from "./cities.ts";
 import type { CitySettings, Unit } from "./storage.ts";
 import { cyan, error, ok, paint, temp } from "./colors.ts";
@@ -139,8 +146,24 @@ export async function runMenu(initialSettings: CitySettings): Promise<void> {
   }
 }
 
+const CANDIDATE_LIMIT = 20;
+const MAX_CITY_OPTIONS = 5;
+
+function uniqueCities(results: GeoResult[]): GeoResult[] {
+  const seen = new Set<string>();
+  return results.filter((result) => {
+    const key = `${result.name}|${result.admin1 ?? ""}|${result.country ?? ""}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
 async function handleAddCity(query: string, current: CitySettings): Promise<CitySettings> {
-  const results = await searchCities(query, 5);
+  const candidates = await searchCities(query, CANDIDATE_LIMIT);
+  const results = uniqueCities(candidates).slice(0, MAX_CITY_OPTIONS);
   const first = results[0];
   if (!first) {
     console.log(paint(`No se encontró ninguna ciudad para "${query}".`, error));
@@ -219,14 +242,20 @@ async function handleSetDefaultCity(current: CitySettings): Promise<CitySettings
     });
     const choice = (await prompt("Selecciona la ciudad default (0 para cancelar): "))?.trim() ?? "";
     const index = Number(choice);
-    if (Number.isInteger(index) && index > 0 && index <= current.savedCities.length) {
-      target = current.savedCities[index - 1];
+    const selected =
+      Number.isInteger(index) && index > 0 && index <= current.savedCities.length
+        ? current.savedCities[index - 1]
+        : undefined;
+    if (!selected) {
+      console.log("Operación cancelada.");
+      return current;
     }
+    target = selected;
   }
 
   if (!target) {
     const name = (await prompt("Ingresa el nombre de la ciudad default: "))?.trim() ?? "";
-    if (name) {
+    if (name && name !== "0") {
       target = name;
     }
   }
